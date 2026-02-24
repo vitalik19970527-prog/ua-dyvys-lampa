@@ -14902,3 +14902,107 @@
     startPlugin();
 
 })();
+
+
+// ===============================
+// Ukrainian audio filter
+// ===============================
+function filterUkrainianOnly(streams){
+    if(!streams) return streams;
+    return streams.filter(function(s){
+        var t = ((s.voice||'')+(s.title||'')+(s.name||'')).toLowerCase();
+        return t.includes('укр') || t.includes('ua') || t.includes('ukrain');
+    });
+}
+
+// ===============================
+// UASerials Resolver
+// ===============================
+var uaserialsResolver = {
+    name: 'UASerials',
+    host: 'https://uaserials.my',
+    resolve: async function(title, year){
+        let body = 'do=search&subaction=search&story=' + encodeURIComponent(title);
+        let html = await fetch(this.host + '/', {
+            method: 'POST',
+            headers: {'Content-Type':'application/x-www-form-urlencoded'},
+            body: body
+        }).then(r=>r.text());
+        let doc = new DOMParser().parseFromString(html,'text/html');
+        let link = doc.querySelector('a[href*=".html"]');
+        if(!link) return [];
+        let movie = await fetch(link.href).then(r=>r.text());
+        let mdoc = new DOMParser().parseFromString(movie,'text/html');
+        let iframe = mdoc.querySelector('iframe[data-src]');
+        if(!iframe) return [];
+        return filterUkrainianOnly([{
+            title:'UASerials',
+            url: iframe.getAttribute('data-src'),
+            quality:'1080p'
+        }]);
+    }
+};
+
+// ===============================
+// UAKino Resolver
+// ===============================
+var uakinoResolver = {
+    name:'UAKino',
+    host:'https://uakino-bay.net',
+    resolve: async function(title, year){
+        let html = await fetch(this.host+'/search/'+encodeURIComponent(title)).then(r=>r.text());
+        let doc = new DOMParser().parseFromString(html,'text/html');
+        let link = doc.querySelector('a[href*=".html"]');
+        if(!link) return [];
+        let page = await fetch(link.href).then(r=>r.text());
+        let pdoc = new DOMParser().parseFromString(page,'text/html');
+        let iframe = pdoc.querySelector('iframe');
+        if(!iframe) return [];
+        let player = await fetch(iframe.src).then(r=>r.text());
+        let m = player.match(/https:\/\/[^"]+\.m3u8/);
+        if(!m) return [];
+        return filterUkrainianOnly([{
+            title:'UAKino',
+            url:m[0],
+            quality:'1080p'
+        }]);
+    }
+};
+
+// ===============================
+// UAKinogo Resolver
+// ===============================
+var uakinogoResolver = {
+    name:'UAKinogo',
+    host:'https://uakinogo.io',
+    resolve: async function(title, year){
+        let html = await fetch(this.host+'/search/'+encodeURIComponent(title)).then(r=>r.text());
+        let doc = new DOMParser().parseFromString(html,'text/html');
+        let link = doc.querySelector('a[href*=".html"]');
+        if(!link) return [];
+        let page = await fetch(link.href).then(r=>r.text());
+        let pdoc = new DOMParser().parseFromString(page,'text/html');
+        let iframe = pdoc.querySelector('iframe[data-src]');
+        if(!iframe) return [];
+        return filterUkrainianOnly([{
+            title:'UAKinogo',
+            url:iframe.getAttribute('data-src'),
+            quality:'1080p'
+        }]);
+    }
+};
+
+// ===============================
+// Replace button title
+// ===============================
+if(window.Lampa){
+    Lampa.Listener.follow('full_buttons', function(btns){
+        btns.forEach(function(b){
+            if(b.title === 'Дивитись'){
+                b.title = 'Дивись UA';
+            }
+        });
+    });
+}
+
+console.log('UA DYVYS plugin loaded');
